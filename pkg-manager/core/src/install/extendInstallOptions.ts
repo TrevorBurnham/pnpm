@@ -89,6 +89,7 @@ export interface StrictInstallOptions {
   hooks: {
     readPackage?: ReadPackageHook[]
     preResolution?: Array<(ctx: PreResolutionHookContext) => Promise<void>>
+    transformResolution?: Array<(resolution: any, ctx: any) => any | Promise<any>> // eslint-disable-line @typescript-eslint/no-explicit-any
     afterAllResolved?: Array<(lockfile: LockfileObject) => LockfileObject | Promise<LockfileObject>>
     calculatePnpmfileChecksum?: () => Promise<string | undefined>
   }

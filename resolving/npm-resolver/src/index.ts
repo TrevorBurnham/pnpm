@@ -74,6 +74,7 @@ export interface ResolverFactoryOptions {
   timeout?: number
   registries: Registries
   saveWorkspaceProtocol?: boolean | 'rolling'
+  transformResolution?: Array<(resolution: any, ctx: any) => any | Promise<any>> // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 export interface NpmResolveResult extends ResolveResult {
@@ -134,6 +135,7 @@ export function createNpmResolver (
     }),
     registries: opts.registries,
     saveWorkspaceProtocol: opts.saveWorkspaceProtocol,
+    transformResolution: opts.transformResolution,
   }
   return {
     resolveFromNpm: resolveNpm.bind(null, ctx),
@@ -149,6 +151,7 @@ export interface ResolveFromNpmContext {
   getAuthHeaderValueByURI: (registry: string) => string | undefined
   registries: Registries
   saveWorkspaceProtocol?: boolean | 'rolling'
+  transformResolution?: Array<(resolution: any, ctx: any) => any | Promise<any>> // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 export type ResolveFromNpmOptions = {
@@ -293,10 +296,27 @@ async function resolveNpm (
   }
 
   const id = `${pickedPackage.name}@${pickedPackage.version}` as PkgResolutionId
-  const resolution = {
+  let resolution = {
     integrity: getIntegrity(pickedPackage.dist),
     tarball: pickedPackage.dist.tarball,
   }
+
+  // Apply transformResolution hooks if available
+  if (ctx.transformResolution && ctx.transformResolution.length > 0) {
+    const hookContext = {
+      packageName: pickedPackage.name,
+      version: pickedPackage.version,
+      registry,
+      wantedDependency,
+      lockfileDir: opts.lockfileDir || opts.projectDir,
+      projectDir: opts.projectDir,
+    }
+
+    for (const hook of ctx.transformResolution) {
+      resolution = await hook(resolution, hookContext)
+    }
+  }
+
   let normalizedBareSpecifier: string | undefined
   if (opts.calcSpecifier) {
     normalizedBareSpecifier = spec.normalizedBareSpecifier ?? calcSpecifier({
@@ -345,10 +365,27 @@ async function resolveJsr (
   }
 
   const id = `${pickedPackage.name}@${pickedPackage.version}` as PkgResolutionId
-  const resolution = {
+  let resolution = {
     integrity: getIntegrity(pickedPackage.dist),
     tarball: pickedPackage.dist.tarball,
   }
+
+  // Apply transformResolution hooks if available
+  if (ctx.transformResolution && ctx.transformResolution.length > 0) {
+    const hookContext = {
+      packageName: pickedPackage.name,
+      version: pickedPackage.version,
+      registry,
+      wantedDependency,
+      lockfileDir: opts.lockfileDir || opts.projectDir,
+      projectDir: opts.projectDir,
+    }
+
+    for (const hook of ctx.transformResolution) {
+      resolution = await hook(resolution, hookContext)
+    }
+  }
+
   return {
     id,
     latest: meta['dist-tags'].latest,

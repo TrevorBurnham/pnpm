@@ -1,4 +1,4 @@
-import type { PreResolutionHookContext, PreResolutionHookLogger } from '@pnpm/hooks.types'
+import type { PreResolutionHookContext, PreResolutionHookLogger, TransformResolutionHookLogger } from '@pnpm/hooks.types'
 import { PnpmError } from '@pnpm/error'
 import { hookLogger } from '@pnpm/core-loggers'
 import { createHashFromMultipleFiles } from '@pnpm/crypto.hash'
@@ -30,6 +30,7 @@ interface PnpmfileEntryLoaded {
 export interface CookedHooks {
   readPackage?: Array<Cook<Required<Hooks>['readPackage']>>
   preResolution?: Array<Cook<Required<Hooks>['preResolution']>>
+  transformResolution?: Array<Cook<Required<Hooks>['transformResolution']>>
   afterAllResolved?: Array<Cook<Required<Hooks>['afterAllResolved']>>
   filterLog?: Array<Cook<Required<Hooks>['filterLog']>>
   updateConfig?: Array<Cook<Required<Hooks>['updateConfig']>>
@@ -92,9 +93,10 @@ export function requireHooks (
     }
   }
 
-  const cookedHooks: CookedHooks & Required<Pick<CookedHooks, 'readPackage' | 'preResolution' | 'afterAllResolved' | 'filterLog' | 'updateConfig'>> = {
+  const cookedHooks: CookedHooks & Required<Pick<CookedHooks, 'readPackage' | 'preResolution' | 'transformResolution' | 'afterAllResolved' | 'filterLog' | 'updateConfig'>> = {
     readPackage: [],
     preResolution: [],
+    transformResolution: [],
     afterAllResolved: [],
     filterLog: [],
     updateConfig: [],
@@ -153,6 +155,12 @@ export function requireHooks (
       cookedHooks.preResolution.push((ctx: PreResolutionHookContext) => preRes(ctx, createPreResolutionHookLogger(prefix)))
     }
 
+    // transformResolution
+    if (fileHooks.transformResolution) {
+      const transformRes = fileHooks.transformResolution
+      cookedHooks.transformResolution.push((resolution: any, ctx: any) => transformRes(resolution, ctx, createTransformResolutionHookLogger(prefix))) // eslint-disable-line @typescript-eslint/no-explicit-any
+    }
+
     // importPackage: only one allowed
     if (fileHooks.importPackage) {
       if (importProvider) {
@@ -194,6 +202,18 @@ function createReadPackageHookContext (calledFrom: string, prefix: string, hook:
 
 function createPreResolutionHookLogger (prefix: string): PreResolutionHookLogger {
   const hook = 'preResolution'
+  return {
+    info: (message: string) => {
+      hookLogger.info({ message, prefix, hook } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    },
+    warn: (message: string) => {
+      hookLogger.warn({ message, prefix, hook } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    },
+  }
+}
+
+function createTransformResolutionHookLogger (prefix: string): TransformResolutionHookLogger {
+  const hook = 'transformResolution'
   return {
     info: (message: string) => {
       hookLogger.info({ message, prefix, hook } as any) // eslint-disable-line @typescript-eslint/no-explicit-any

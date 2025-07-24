@@ -378,3 +378,50 @@ test('automatically loading pnpmfile from a config dependency that has a name th
   expect(nodeModulesFiles).toContain('kind-of')
   expect(nodeModulesFiles).toContain('is-number')
 })
+
+test('transformResolution hook', async () => {
+  prepare()
+  const pnpmfile = `
+    const fs = require('fs')
+
+    module.exports = { hooks: { transformResolution } }
+
+    function transformResolution (resolution, context) {
+      fs.writeFileSync('transform-args.json', JSON.stringify({ 
+        resolution, 
+        context: {
+          packageName: context.packageName,
+          version: context.version,
+          registry: context.registry
+        }
+      }), 'utf8')
+      
+      // Test localhost port normalization
+      if (resolution.tarball && resolution.tarball.includes('localhost:')) {
+        return {
+          ...resolution,
+          tarball: resolution.tarball.replace(/localhost:\\d+/, 'localhost')
+        }
+      }
+      
+      return resolution
+    }
+  `
+
+  const npmrc = `
+    global-pnpmfile=.pnpmfile.cjs
+  `
+
+  fs.writeFileSync('.pnpmfile.cjs', pnpmfile, 'utf8')
+  fs.writeFileSync('.npmrc', npmrc, 'utf8')
+
+  await execPnpm(['add', 'is-positive@1.0.0'])
+
+  expect(fs.existsSync('transform-args.json')).toBeTruthy()
+  const transformArgs = JSON.parse(fs.readFileSync('transform-args.json', 'utf8'))
+  expect(transformArgs.resolution).toBeDefined()
+  expect(transformArgs.resolution.tarball).toBeDefined()
+  expect(transformArgs.context.packageName).toBe('is-positive')
+  expect(transformArgs.context.version).toBe('1.0.0')
+  expect(transformArgs.context.registry).toBeDefined()
+})

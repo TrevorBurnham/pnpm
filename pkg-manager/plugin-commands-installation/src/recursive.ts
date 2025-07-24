@@ -318,6 +318,7 @@ export async function recursive (
             ...pnpmfileHooks,
             afterAllResolved: [...(pnpmfileHooks.afterAllResolved ?? []), ...(opts.hooks?.afterAllResolved ?? [])],
             readPackage: [...(pnpmfileHooks.readPackage ?? []), ...(opts.hooks?.readPackage ?? [])],
+            transformResolution: [...(pnpmfileHooks.transformResolution ?? []), ...(opts.hooks?.transformResolution ?? [])],
           }
         })()
       try {
