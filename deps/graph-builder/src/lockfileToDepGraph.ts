@@ -14,7 +14,7 @@ import { packageIsInstallable } from '@pnpm/package-is-installable'
 import { type PatchGroupRecord, getPatchInfo } from '@pnpm/patching.config'
 import { type PatchInfo } from '@pnpm/patching.types'
 import { type DepPath, type SupportedArchitectures, type Registries, type PkgIdWithPatchHash, type ProjectId } from '@pnpm/types'
-import { type Adapter } from '@pnpm/hooks.types'
+import { type HookGroup } from '@pnpm/hooks.types'
 import {
   type PkgRequestFetchResult,
   type FetchResponse,
@@ -59,7 +59,7 @@ export interface LockfileToDepGraphOptions {
   engineStrict: boolean
   force: boolean
   hooks?: {
-    adapters?: Adapter[]
+    hooks?: HookGroup[]
   }
   importerIds: ProjectId[]
   include: IncludedDependencies

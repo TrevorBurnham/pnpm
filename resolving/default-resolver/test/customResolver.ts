@@ -1,13 +1,13 @@
 /// <reference path="../../../__typings__/index.d.ts"/>
 import { jest } from '@jest/globals'
 import { createResolver } from '@pnpm/default-resolver'
-import { type WantedDependency, type Adapter } from '@pnpm/hooks.types'
+import { type WantedDependency, type HookGroup } from '@pnpm/hooks.types'
 import { type Cafs } from '@pnpm/cafs-types'
 import { type FetchOptions, type FetchResult, type Fetchers } from '@pnpm/fetcher-base'
 import { Response } from 'node-fetch'
 
-test('custom adapter intercepts matching packages', async () => {
-  const customAdapter: Adapter = {
+test('custom hook intercepts matching packages', async () => {
+  const customHook: HookGroup = {
     canResolve: (wantedDependency: WantedDependency) => {
       return wantedDependency.alias === 'test-package'
     },
@@ -27,7 +27,7 @@ test('custom adapter intercepts matching packages', async () => {
   const getAuthHeader = () => undefined
 
   const { resolve } = createResolver(fetchFromRegistry, getAuthHeader, {
-    adapters: [customAdapter],
+    hooks: [customHook],
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -47,11 +47,11 @@ test('custom adapter intercepts matching packages', async () => {
   )
 
   expect(result.id).toBe('custom:test-package@1.0.0')
-  expect(result.resolvedVia).toBe('adapter')
+  expect(result.resolvedVia).toBe('hooks')
 })
 
-test('custom adapter with synchronous methods', async () => {
-  const customAdapter: Adapter = {
+test('custom hook with synchronous methods', async () => {
+  const customHook: HookGroup = {
     // Synchronous support check
     canResolve: (wantedDependency: WantedDependency) => {
       return wantedDependency.alias.startsWith('@sync/')
@@ -72,7 +72,7 @@ test('custom adapter with synchronous methods', async () => {
   const getAuthHeader = () => undefined
 
   const { resolve } = createResolver(fetchFromRegistry, getAuthHeader, {
-    adapters: [customAdapter],
+    hooks: [customHook],
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -92,23 +92,23 @@ test('custom adapter with synchronous methods', async () => {
   )
 
   expect(result.id).toBe('sync:@sync/test@2.0.0')
-  expect(result.resolvedVia).toBe('adapter')
+  expect(result.resolvedVia).toBe('hooks')
 })
 
-test('multiple adapters - first matching wins', async () => {
-  const adapter1: Adapter = {
+test('multiple hooks - first matching wins', async () => {
+  const hookGroup1: HookGroup = {
     canResolve: (wantedDependency) => wantedDependency.alias === 'shared-package',
     resolve: () => ({
-      id: 'adapter-1:shared-package',
-      resolution: { tarball: 'file://adapter1.tgz', integrity: 'sha512-1' },
+      id: 'hook-1:shared-package',
+      resolution: { tarball: 'file://hookGroup1.tgz', integrity: 'sha512-1' },
     }),
   }
 
-  const adapter2: Adapter = {
+  const hookGroup2: HookGroup = {
     canResolve: (wantedDependency) => wantedDependency.alias === 'shared-package',
     resolve: () => ({
-      id: 'adapter-2:shared-package',
-      resolution: { tarball: 'file://adapter2.tgz', integrity: 'sha512-2' },
+      id: 'hook-2:shared-package',
+      resolution: { tarball: 'file://hookGroup2.tgz', integrity: 'sha512-2' },
     }),
   }
 
@@ -116,7 +116,7 @@ test('multiple adapters - first matching wins', async () => {
   const getAuthHeader = () => undefined
 
   const { resolve } = createResolver(fetchFromRegistry, getAuthHeader, {
-    adapters: [adapter1, adapter2], // Order matters
+    hooks: [hookGroup1, hookGroup2], // Order matters
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -135,21 +135,21 @@ test('multiple adapters - first matching wins', async () => {
     }
   )
 
-  // First adapter should win
-  expect(result.id).toBe('adapter-1:shared-package')
-  expect(result.resolvedVia).toBe('adapter')
+  // First hook should win
+  expect(result.id).toBe('hook-1:shared-package')
+  expect(result.resolvedVia).toBe('hooks')
 })
 
-test('custom adapter error handling', async () => {
-  const customAdapter: Adapter = {
+test('custom hook error handling', async () => {
+  const customHook: HookGroup = {
     canResolve: () => true,
     resolve: () => {
-      throw new Error('Adapter failed')
+      throw new Error('Hook failed')
     },
   }
 
   const { resolve } = createResolver(async () => new Response(''), () => undefined, {
-    adapters: [customAdapter],
+    hooks: [customHook],
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -159,21 +159,21 @@ test('custom adapter error handling', async () => {
     registries: { default: 'https://registry.npmjs.org/' },
   })
 
-  await expect(resolve({ alias: 'any', bareSpecifier: '1.0.0' }, { lockfileDir: '/test', projectDir: '/test', preferredVersions: {} })).rejects.toThrow('Adapter failed')
+  await expect(resolve({ alias: 'any', bareSpecifier: '1.0.0' }, { lockfileDir: '/test', projectDir: '/test', preferredVersions: {} })).rejects.toThrow('Hook failed')
 })
 
-test('preferredVersions are passed to custom adapter', async () => {
+test('preferredVersions are passed to custom hook', async () => {
   const resolve = jest.fn(() => ({
     id: 'test@1.0.0',
     resolution: { tarball: 'file://test.tgz', integrity: 'sha512-test' },
   }))
-  const customAdapter: Adapter = {
+  const customHook: HookGroup = {
     canResolve: () => true,
     resolve,
   }
 
   const { resolve: resolvePackage } = createResolver(async () => new Response(''), () => undefined, {
-    adapters: [customAdapter],
+    hooks: [customHook],
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -191,8 +191,8 @@ test('preferredVersions are passed to custom adapter', async () => {
   expect(resolve).toHaveBeenCalledWith({ alias: 'any', bareSpecifier: '1.0.0' }, { lockfileDir: '/test', projectDir: '/test', preferredVersions: { any: { '1.0.0': 'version' } } })
 })
 
-test('custom adapter can intercept any protocol', async () => {
-  const customAdapter: Adapter = {
+test('custom hook can intercept any protocol', async () => {
+  const customHook: HookGroup = {
     canResolve: (wantedDependency: WantedDependency) => {
       return wantedDependency.alias.startsWith('custom-')
     },
@@ -206,7 +206,7 @@ test('custom adapter can intercept any protocol', async () => {
   }
 
   const { resolve } = createResolver(async () => new Response(''), () => undefined, {
-    adapters: [customAdapter],
+    hooks: [customHook],
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -221,12 +221,12 @@ test('custom adapter can intercept any protocol', async () => {
     { lockfileDir: '/test', projectDir: '/test', preferredVersions: {} }
   )
 
-  expect(result.resolvedVia).toBe('adapter')
+  expect(result.resolvedVia).toBe('hooks')
   expect(result.id).toBe('custom-handled:custom-package@file:../some-path')
 })
 
-test('custom adapter falls through when not supported', async () => {
-  const customAdapter: Adapter = {
+test('custom hook falls through when not supported', async () => {
+  const customHook: HookGroup = {
     canResolve: (wantedDependency: WantedDependency) => {
       return wantedDependency.alias.startsWith('custom-')
     },
@@ -237,7 +237,7 @@ test('custom adapter falls through when not supported', async () => {
   }
 
   const { resolve } = createResolver(async () => new Response(''), () => undefined, {
-    adapters: [customAdapter],
+    hooks: [customHook],
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -255,8 +255,8 @@ test('custom adapter falls through when not supported', async () => {
   ).rejects.toThrow()
 })
 
-test('custom adapter can override npm registry resolution', async () => {
-  const npmStyleAdapter: Adapter = {
+test('custom hook can override npm registry resolution', async () => {
+  const npmStyleHook: HookGroup = {
     canResolve: (wantedDependency) => {
       return !wantedDependency.bareSpecifier.includes(':')
     },
@@ -270,7 +270,7 @@ test('custom adapter can override npm registry resolution', async () => {
   }
 
   const { resolve } = createResolver(async () => new Response(''), () => undefined, {
-    adapters: [npmStyleAdapter],
+    hooks: [npmStyleHook],
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -285,16 +285,16 @@ test('custom adapter can override npm registry resolution', async () => {
     { lockfileDir: '/test', projectDir: '/test', preferredVersions: {} }
   )
 
-  expect(result.resolvedVia).toBe('adapter')
+  expect(result.resolvedVia).toBe('hooks')
   expect('tarball' in result.resolution && result.resolution.tarball).toContain('custom-registry.com')
 })
 
-// Fetch phase adapter tests - showing complete fetcher replacements
+// Fetch phase hook tests - showing complete fetcher replacements
 
-test('custom adapter.fetch: reuse local tarball fetcher', async () => {
-  // This demonstrates how a custom adapter can reuse pnpm's local tarball fetcher
+test('custom hook.fetch: reuse local tarball fetcher', async () => {
+  // This demonstrates how a custom hook can reuse pnpm's local tarball fetcher
   // for a custom protocol like "company-local:package-name"
-  const localTarballAdapter: Adapter = {
+  const localTarballHook: HookGroup = {
     canResolve: (wantedDependency) => wantedDependency.alias.startsWith('company-local:'),
     resolve: (wantedDependency) => {
       const actualName = wantedDependency.alias.replace('company-local:', '')
@@ -319,7 +319,7 @@ test('custom adapter.fetch: reuse local tarball fetcher', async () => {
   }
 
   const { resolve } = createResolver(async () => new Response(''), () => undefined, {
-    adapters: [localTarballAdapter],
+    hooks: [localTarballHook],
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -334,14 +334,14 @@ test('custom adapter.fetch: reuse local tarball fetcher', async () => {
     { lockfileDir: '/test', projectDir: '/test', preferredVersions: {} }
   )
 
-  expect(result.resolvedVia).toBe('adapter')
+  expect(result.resolvedVia).toBe('hooks')
   expect(result.resolution).toHaveProperty('type', '@company/local')
 })
 
-test('custom adapter.fetch: reuse remote tarball downloader', async () => {
+test('custom hook.fetch: reuse remote tarball downloader', async () => {
   // This demonstrates fetching from a custom CDN using pnpm's download utilities
   // for a custom protocol like "cdn:package-name"
-  const cdnAdapter: Adapter = {
+  const cdnHook: HookGroup = {
     canResolve: (wantedDependency) => wantedDependency.alias.startsWith('cdn:'),
     resolve: (wantedDependency) => {
       const actualName = wantedDependency.alias.replace('cdn:', '')
@@ -366,7 +366,7 @@ test('custom adapter.fetch: reuse remote tarball downloader', async () => {
   }
 
   const { resolve } = createResolver(async () => new Response(''), () => undefined, {
-    adapters: [cdnAdapter],
+    hooks: [cdnHook],
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -381,14 +381,14 @@ test('custom adapter.fetch: reuse remote tarball downloader', async () => {
     { lockfileDir: '/test', projectDir: '/test', preferredVersions: {} }
   )
 
-  expect(result.resolvedVia).toBe('adapter')
+  expect(result.resolvedVia).toBe('hooks')
   expect(result.resolution).toHaveProperty('type', '@company/cdn')
 })
 
-test('custom adapter.fetch: wrap npm registry with custom logic', async () => {
+test('custom hook.fetch: wrap npm registry with custom logic', async () => {
   // This demonstrates wrapping/enhancing standard npm registry resolution and fetching
   // for a protocol like "private-npm:package-name" that uses private registry
-  const privateNpmAdapter: Adapter = {
+  const privateNpmHook: HookGroup = {
     canResolve: (wantedDependency) => wantedDependency.alias.startsWith('private-npm:'),
     resolve: async (wantedDependency, opts) => {
       const actualName = wantedDependency.alias.replace('private-npm:', '')
@@ -413,7 +413,7 @@ test('custom adapter.fetch: wrap npm registry with custom logic', async () => {
   }
 
   const { resolve } = createResolver(async () => new Response(''), () => undefined, {
-    adapters: [privateNpmAdapter],
+    hooks: [privateNpmHook],
     rawConfig: {},
     cacheDir: '/tmp/test-cache',
     offline: false,
@@ -428,6 +428,6 @@ test('custom adapter.fetch: wrap npm registry with custom logic', async () => {
     { lockfileDir: '/test', projectDir: '/test', preferredVersions: {} }
   )
 
-  expect(result.resolvedVia).toBe('adapter')
+  expect(result.resolvedVia).toBe('hooks')
   expect('tarball' in result.resolution && result.resolution.tarball).toContain('private-registry.company.com')
 })

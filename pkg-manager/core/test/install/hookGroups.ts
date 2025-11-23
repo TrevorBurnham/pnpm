@@ -1,20 +1,20 @@
 import { prepareEmpty } from '@pnpm/prepare'
 import { addDependenciesToPackage } from '@pnpm/core'
-import { type Adapter } from '@pnpm/hooks.types'
+import { type HookGroup } from '@pnpm/hooks.types'
 import { REGISTRY_MOCK_PORT } from '@pnpm/registry-mock'
 import { testDefaults } from '../utils/index.js'
 
 // Test 1: Validate custom metadata flows through resolve() → lockfile
 // TODO: Unskip when fixed - tests timeout with "Jest environment has been torn down" errors during dependency resolution
-test.skip('custom adapter: metadata from resolve() is persisted to lockfile', async () => {
+test.skip('custom hook: metadata from resolve() is persisted to lockfile', async () => {
   const project = prepareEmpty()
 
   const resolveCallCount = { count: 0 }
   const shouldForceResolveCallCount = { count: 0 }
   let savedCachedAt: number | undefined
 
-  // Adapter that wraps @pnpm.e2e/dep-of-pkg-with-1-dep and adds custom metadata
-  const timestampAdapter: Adapter = {
+  // Hook that wraps @pnpm.e2e/dep-of-pkg-with-1-dep and adds custom metadata
+  const timestampHook: HookGroup = {
     canResolve: (descriptor) => {
       return wantedDependency.alias === '@pnpm.e2e/dep-of-pkg-with-1-dep'
     },
@@ -52,7 +52,7 @@ test.skip('custom adapter: metadata from resolve() is persisted to lockfile', as
     ['@pnpm.e2e/dep-of-pkg-with-1-dep@100.0.0'],
     testDefaults({
       hooks: {
-        adapters: [timestampAdapter],
+        hooks: [timestampHook],
       },
     })
   )
@@ -73,7 +73,7 @@ test.skip('custom adapter: metadata from resolve() is persisted to lockfile', as
     [],
     testDefaults({
       hooks: {
-        adapters: [timestampAdapter],
+        hooks: [timestampHook],
       },
     })
   )
@@ -90,15 +90,15 @@ test.skip('custom adapter: metadata from resolve() is persisted to lockfile', as
   expect((pkgSnapshot2?.resolution as any)?.cachedAt).toBe(savedCachedAt) // eslint-disable-line @typescript-eslint/no-explicit-any
 })
 
-// Test 2: Validate adapter resolution works for both fresh and cached installs
+// Test 2: Validate hook resolution works for both fresh and cached installs
 // TODO: Unskip when fixed - tests timeout with "Jest environment has been torn down" errors during dependency resolution
-test.skip('custom adapter: works for fresh resolve() and lockfile resolutions', async () => {
+test.skip('custom hook: works for fresh resolve() and lockfile resolutions', async () => {
   const project = prepareEmpty()
 
   let resolveCallCount = 0
 
-  // Adapter that wraps standard resolution but tracks calls
-  const trackingAdapter: Adapter = {
+  // Hook that wraps standard resolution but tracks calls
+  const trackingHook: HookGroup = {
     canResolve: (descriptor) => {
       return wantedDependency.alias === '@pnpm.e2e/pkg-with-1-dep'
     },
@@ -120,18 +120,18 @@ test.skip('custom adapter: works for fresh resolve() and lockfile resolutions', 
     },
   }
 
-  // First install - fresh resolution, adapter should be used
+  // First install - fresh resolution, hook should be used
   const { updatedManifest: manifest } = await addDependenciesToPackage(
     {},
     ['@pnpm.e2e/pkg-with-1-dep@100.0.0'],
     testDefaults({
       hooks: {
-        adapters: [trackingAdapter],
+        hooks: [trackingHook],
       },
     })
   )
 
-  // Verify adapter.resolve was called for fresh resolution
+  // Verify hook.resolve was called for fresh resolution
   expect(resolveCallCount).toBe(1)
 
   project.has('@pnpm.e2e/pkg-with-1-dep')
@@ -143,12 +143,12 @@ test.skip('custom adapter: works for fresh resolve() and lockfile resolutions', 
     [],
     testDefaults({
       hooks: {
-        adapters: [trackingAdapter],
+        hooks: [trackingHook],
       },
     })
   )
 
-  // Verify adapter.resolve was not called again (using cached lockfile)
+  // Verify hook.resolve was not called again (using cached lockfile)
   expect(resolveCallCount).toBe(0)
 
   project.has('@pnpm.e2e/pkg-with-1-dep')
@@ -156,13 +156,13 @@ test.skip('custom adapter: works for fresh resolve() and lockfile resolutions', 
 
 // Test 3: Validate shouldForceResolve can trigger re-resolution
 // TODO: Unskip when fixed - tests timeout with "Jest environment has been torn down" errors during dependency resolution
-test.skip('custom adapter: shouldForceResolve=true triggers re-resolution', async () => {
+test.skip('custom hook: shouldForceResolve=true triggers re-resolution', async () => {
   const project = prepareEmpty()
 
   let resolveCallCount = 0
   let shouldForceReturn = false
 
-  const forceResolveAdapter: Adapter = {
+  const forceResolveHook: HookGroup = {
     canResolve: (descriptor) => {
       return wantedDependency.alias === '@pnpm.e2e/foo'
     },
@@ -195,7 +195,7 @@ test.skip('custom adapter: shouldForceResolve=true triggers re-resolution', asyn
     ['@pnpm.e2e/foo@100.0.0'],
     testDefaults({
       hooks: {
-        adapters: [forceResolveAdapter],
+        hooks: [forceResolveHook],
       },
     })
   )
@@ -209,7 +209,7 @@ test.skip('custom adapter: shouldForceResolve=true triggers re-resolution', asyn
     [],
     testDefaults({
       hooks: {
-        adapters: [forceResolveAdapter],
+        hooks: [forceResolveHook],
       },
     })
   )
@@ -224,7 +224,7 @@ test.skip('custom adapter: shouldForceResolve=true triggers re-resolution', asyn
     [],
     testDefaults({
       hooks: {
-        adapters: [forceResolveAdapter],
+        hooks: [forceResolveHook],
       },
     })
   )

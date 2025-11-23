@@ -76,7 +76,7 @@ import pLimit from 'p-limit'
 import { map as mapValues, clone, isEmpty, pipeWith, props } from 'ramda'
 import { parseWantedDependencies } from '../parseWantedDependencies.js'
 import { removeDeps } from '../uninstall/removeDeps.js'
-import { checkAdapterForceResolve } from './checkAdapterForceResolve.js'
+import { checkHookForceResolve } from './checkHookForceResolve.js'
 import {
   extendOptions,
   type InstallOptions,
@@ -319,13 +319,13 @@ export async function mutateModules (
     }
   }
 
-  // Check if any adapters want to force resolution for specific dependencies
+  // Check if any hooks want to force resolution for specific dependencies
   // Skip this check when using frozen lockfile (e.g., during deploy) to avoid conflicts
   let forceResolutionFromHook = false
-  if (opts.hooks.adapters && ctx.existsNonEmptyWantedLockfile && !opts.frozenLockfile) {
+  if (opts.hooks.hooks && ctx.existsNonEmptyWantedLockfile && !opts.frozenLockfile) {
     const projects = Object.values(ctx.projects).map(({ id, manifest }) => ({ id, manifest }))
-    forceResolutionFromHook = await checkAdapterForceResolve(
-      opts.hooks.adapters,
+    forceResolutionFromHook = await checkHookForceResolve(
+      opts.hooks.hooks,
       ctx.wantedLockfile,
       projects
     )
@@ -1166,7 +1166,7 @@ const _installInContext: InstallFunction = async (projects, ctx, opts) => {
       ignoreScripts: opts.ignoreScripts,
       hooks: {
         readPackage: opts.readPackageHook,
-        adapters: opts.hooks?.adapters,
+        hooks: opts.hooks?.hooks,
       },
       linkWorkspacePackagesDepth: opts.linkWorkspacePackagesDepth ?? (opts.saveWorkspaceProtocol ? 0 : -1),
       lockfileDir: opts.lockfileDir,

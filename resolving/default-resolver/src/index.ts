@@ -22,7 +22,7 @@ import {
   type WantedDependency,
 } from '@pnpm/resolver-base'
 import { type TarballResolveResult, resolveFromTarball } from '@pnpm/tarball-resolver'
-import { type Adapter, checkAdapterCanResolve } from '@pnpm/hooks.types'
+import { type HookGroup, checkHookCanResolve } from '@pnpm/hooks.types'
 
 export type {
   PackageMeta,
@@ -31,8 +31,8 @@ export type {
   ResolverFactoryOptions,
 }
 
-export interface AdapterResolveResult extends ResolveResult {
-  resolvedVia: 'adapter'
+export interface HookResolveResult extends ResolveResult {
+  resolvedVia: 'hooks'
 }
 
 export type DefaultResolveResult =
@@ -45,36 +45,35 @@ export type DefaultResolveResult =
   | NodeRuntimeResolveResult
   | DenoRuntimeResolveResult
   | BunRuntimeResolveResult
-  | AdapterResolveResult
+  | HookResolveResult
 
 export type DefaultResolver = (wantedDependency: WantedDependency, opts: ResolveOptions) => Promise<DefaultResolveResult>
 
-async function resolveFromAdapters (
-  adapters: Adapter[],
+async function resolveFromHooks (
   wantedDependency: WantedDependency,
   opts: ResolveOptions
 ): Promise<DefaultResolveResult | null> {
-  if (!adapters || adapters.length === 0) {
+  if (!opts.hooks || opts.hooks.length === 0) {
     return null
   }
 
-  for (const adapter of adapters) {
-    // Skip adapters that don't support both canResolve and resolve
-    if (!adapter.canResolve || !adapter.resolve) continue
+  for (const hookGroup of opts.hooks) {
+    // Skip hook groups that don't support both canResolve and resolve
+    if (!hookGroup.canResolve || !hookGroup.resolve) continue
 
     // eslint-disable-next-line no-await-in-loop
-    const canResolve = await checkAdapterCanResolve(adapter, wantedDependency)
+    const canResolve = await checkHookCanResolve(hookGroup, wantedDependency)
 
     if (canResolve) {
       // eslint-disable-next-line no-await-in-loop
-      const result = await adapter.resolve(wantedDependency, {
+      const result = await hookGroup.resolve(wantedDependency, {
         lockfileDir: opts.lockfileDir,
         projectDir: opts.projectDir,
         preferredVersions: (opts.preferredVersions ?? {}) as unknown as Record<string, string>,
       })
       return {
         ...result,
-        resolvedVia: 'adapter',
+        resolvedVia: 'hooks',
       } as DefaultResolveResult
     }
   }
@@ -87,7 +86,7 @@ export function createResolver (
   getAuthHeader: GetAuthHeader,
   pnpmOpts: ResolverFactoryOptions & {
     rawConfig: Record<string, string>
-    adapters?: Adapter[]
+    hooks?: HookGroup[]
   }
 ): { resolve: DefaultResolver, clearCache: () => void } {
   const { resolveFromNpm, resolveFromJsr, clearCache } = createNpmResolver(fetchFromRegistry, getAuthHeader, pnpmOpts)
@@ -98,12 +97,10 @@ export function createResolver (
   const _resolveNodeRuntime = resolveNodeRuntime.bind(null, { fetchFromRegistry, offline: pnpmOpts.offline, rawConfig: pnpmOpts.rawConfig })
   const _resolveDenoRuntime = resolveDenoRuntime.bind(null, { fetchFromRegistry, offline: pnpmOpts.offline, rawConfig: pnpmOpts.rawConfig, resolveFromNpm })
   const _resolveBunRuntime = resolveBunRuntime.bind(null, { fetchFromRegistry, offline: pnpmOpts.offline, rawConfig: pnpmOpts.rawConfig, resolveFromNpm })
-  const _resolveFromAdapters = pnpmOpts.adapters
-    ? resolveFromAdapters.bind(null, pnpmOpts.adapters)
-    : null
+  const hasHooks = pnpmOpts.hooks && pnpmOpts.hooks.length > 0
   return {
     resolve: async (wantedDependency, opts) => {
-      const resolution = (_resolveFromAdapters && await _resolveFromAdapters(wantedDependency, opts)) ??
+      const resolution = (hasHooks && await resolveFromHooks(wantedDependency, opts)) ??
         await resolveFromNpm(wantedDependency, opts as ResolveFromNpmOptions) ??
         await resolveFromJsr(wantedDependency, opts as ResolveFromNpmOptions) ??
         (wantedDependency.bareSpecifier && (

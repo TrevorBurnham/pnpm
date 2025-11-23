@@ -124,7 +124,7 @@ export interface PlatformAssetResolution {
 }
 
 /**
- * Custom resolution type for adapter-provided packages.
+ * Custom resolution type for hook-provided packages.
  * Uses scoped naming convention (like npm packages) to avoid collisions.
  *
  * Example: { type: '@company/cdn', cdnUrl: '...' }

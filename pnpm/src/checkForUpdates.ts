@@ -27,6 +27,7 @@ export async function checkForUpdates (config: Config): Promise<void> {
   const { resolve } = createResolver({
     ...config,
     authConfig: config.rawConfig,
+    hooks: config.hooks?.hooks,
     retry: {
       retries: 0,
     },

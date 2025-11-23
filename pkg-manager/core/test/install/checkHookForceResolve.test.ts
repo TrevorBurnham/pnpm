@@ -1,23 +1,23 @@
-import { checkAdapterForceResolve, type ProjectWithManifest } from '../../src/install/checkAdapterForceResolve.js'
-import { type Adapter } from '@pnpm/hooks.types'
+import { checkHookForceResolve, type ProjectWithManifest } from '../../src/install/checkHookForceResolve.js'
+import { type HookGroup } from '@pnpm/hooks.types'
 import { type LockfileObject } from '@pnpm/lockfile.types'
 import { type ProjectId } from '@pnpm/types'
 
-describe('checkAdapterForceResolve', () => {
-  test('returns false when no adapters provided', async () => {
+describe('checkHookForceResolve', () => {
+  test('returns false when no hooks provided', async () => {
     const lockfile: LockfileObject = {
       lockfileVersion: '9.0',
       importers: {},
     }
     const projects: ProjectWithManifest[] = []
 
-    const result = await checkAdapterForceResolve([], lockfile, projects)
+    const result = await checkHookForceResolve([], lockfile, projects)
 
     expect(result).toBe(false)
   })
 
   test('returns false when no projects provided', async () => {
-    const adapter: Adapter = {
+    const hookGroup: HookGroup = {
       canResolve: () => true,
       shouldForceResolve: () => true,
     }
@@ -26,13 +26,13 @@ describe('checkAdapterForceResolve', () => {
       importers: {},
     }
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, [])
+    const result = await checkHookForceResolve([hookGroup], lockfile, [])
 
     expect(result).toBe(false)
   })
 
-  test('returns false when adapter canResolve returns false', async () => {
-    const adapter: Adapter = {
+  test('returns false when hook canResolve returns false', async () => {
+    const hookGroup: HookGroup = {
       canResolve: () => false,
       shouldForceResolve: () => true,
     }
@@ -62,13 +62,13 @@ describe('checkAdapterForceResolve', () => {
       },
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(false)
   })
 
-  test('returns false when adapter has no shouldForceResolve', async () => {
-    const adapter: Adapter = {
+  test('returns false when hook has no shouldForceResolve', async () => {
+    const hookGroup: HookGroup = {
       canResolve: () => true,
       // No shouldForceResolve
     }
@@ -98,13 +98,13 @@ describe('checkAdapterForceResolve', () => {
       },
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(false)
   })
 
   test('returns false when shouldForceResolve returns false', async () => {
-    const adapter: Adapter = {
+    const hookGroup: HookGroup = {
       canResolve: () => true,
       shouldForceResolve: () => false,
     }
@@ -134,13 +134,13 @@ describe('checkAdapterForceResolve', () => {
       },
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(false)
   })
 
   test('returns true when shouldForceResolve returns true', async () => {
-    const adapter: Adapter = {
+    const hookGroup: HookGroup = {
       canResolve: (wantedDependency) => wantedDependency.alias === 'test-pkg',
       shouldForceResolve: () => true,
     }
@@ -170,13 +170,13 @@ describe('checkAdapterForceResolve', () => {
       },
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(true)
   })
 
   test('checks devDependencies', async () => {
-    const adapter: Adapter = {
+    const hookGroup: HookGroup = {
       canResolve: (wantedDependency) => wantedDependency.alias === 'dev-pkg',
       shouldForceResolve: () => true,
     }
@@ -206,13 +206,13 @@ describe('checkAdapterForceResolve', () => {
       } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(true)
   })
 
   test('checks optionalDependencies', async () => {
-    const adapter: Adapter = {
+    const hookGroup: HookGroup = {
       canResolve: (wantedDependency) => wantedDependency.alias === 'opt-pkg',
       shouldForceResolve: () => true,
     }
@@ -242,13 +242,13 @@ describe('checkAdapterForceResolve', () => {
       } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(true)
   })
 
   test('checks peerDependencies', async () => {
-    const adapter: Adapter = {
+    const hookGroup: HookGroup = {
       canResolve: (wantedDependency) => wantedDependency.alias === 'peer-pkg',
       shouldForceResolve: () => true,
     }
@@ -278,13 +278,13 @@ describe('checkAdapterForceResolve', () => {
       } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(true)
   })
 
   test('checks all dependency types together', async () => {
-    const adapter: Adapter = {
+    const hookGroup: HookGroup = {
       canResolve: () => true,
       shouldForceResolve: (wantedDependency) => wantedDependency.alias === 'peer-pkg',
     }
@@ -341,13 +341,13 @@ describe('checkAdapterForceResolve', () => {
       } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(true)
   })
 
   test('handles multiple projects', async () => {
-    const adapter: Adapter = {
+    const hookGroup: HookGroup = {
       canResolve: (wantedDependency) => wantedDependency.alias === 'pkg-b',
       shouldForceResolve: () => true,
     }
@@ -393,17 +393,17 @@ describe('checkAdapterForceResolve', () => {
       } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(true)
   })
 
-  test('handles multiple adapters - first matching returns true', async () => {
-    const adapter1: Adapter = {
+  test('handles multiple hooks - first matching returns true', async () => {
+    const hookGroup1: HookGroup = {
       canResolve: () => false,
       shouldForceResolve: () => true,
     }
-    const adapter2: Adapter = {
+    const hookGroup2: HookGroup = {
       canResolve: () => true,
       shouldForceResolve: () => true,
     }
@@ -433,13 +433,13 @@ describe('checkAdapterForceResolve', () => {
       },
     ]
 
-    const result = await checkAdapterForceResolve([adapter1, adapter2], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup1, hookGroup2], lockfile, projects)
 
     expect(result).toBe(true)
   })
 
   test('handles async shouldForceResolve', async () => {
-    const adapter: Adapter = {
+    const hookGroup: HookGroup = {
       canResolve: () => true,
       shouldForceResolve: async () => {
         await new Promise(resolve => setTimeout(resolve, 10))
@@ -472,14 +472,14 @@ describe('checkAdapterForceResolve', () => {
       },
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(true)
   })
 
   test('short-circuits on first true result', async () => {
     let callCount = 0
-    const adapter: Adapter = {
+    const hookGroup: HookGroup = {
       canResolve: () => true,
       shouldForceResolve: () => {
         callCount++
@@ -522,7 +522,7 @@ describe('checkAdapterForceResolve', () => {
       },
     ]
 
-    const result = await checkAdapterForceResolve([adapter], lockfile, projects)
+    const result = await checkHookForceResolve([hookGroup], lockfile, projects)
 
     expect(result).toBe(true)
     expect(callCount).toBe(1) // Should stop after first true

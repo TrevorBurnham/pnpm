@@ -1,6 +1,6 @@
 import { type ProjectId, type ProjectManifest } from '@pnpm/types'
 import { type LockfileObject } from '@pnpm/lockfile.types'
-import { type Adapter, type WantedDependency, checkAdapterCanResolve } from '@pnpm/hooks.types'
+import { type HookGroup, type WantedDependency, checkHookCanResolve } from '@pnpm/hooks.types'
 
 export interface ProjectWithManifest {
   id: ProjectId
@@ -8,16 +8,16 @@ export interface ProjectWithManifest {
 }
 
 /**
- * Check if any adapter requires force re-resolution for dependencies in the lockfile.
+ * Check if any hook group requires force re-resolution for dependencies in the lockfile.
  * This is a pure function extracted from the install flow for testability.
  *
- * @param adapters - Array of adapters to check
+ * @param hooks - Array of hook groups to check
  * @param wantedLockfile - Current lockfile
  * @param projects - Projects with their manifests
- * @returns Promise<boolean> - true if any adapter requires force re-resolution
+ * @returns Promise<boolean> - true if any hook requires force re-resolution
  */
-export async function checkAdapterForceResolve (
-  adapters: Adapter[],
+export async function checkHookForceResolve (
+  hooks: HookGroup[],
   wantedLockfile: LockfileObject,
   projects: ProjectWithManifest[]
 ): Promise<boolean> {
@@ -30,13 +30,13 @@ export async function checkAdapterForceResolve (
         bareSpecifier: bareSpec,
       }
 
-      for (const adapter of adapters) {
+      for (const hookGroup of hooks) {
         // eslint-disable-next-line no-await-in-loop
-        const canResolve = await checkAdapterCanResolve(adapter, wantedDependency)
+        const canResolve = await checkHookCanResolve(hookGroup, wantedDependency)
 
-        if (canResolve && adapter.shouldForceResolve) {
+        if (canResolve && hookGroup.shouldForceResolve) {
           // eslint-disable-next-line no-await-in-loop
-          const shouldForce = await adapter.shouldForceResolve(wantedDependency)
+          const shouldForce = await hookGroup.shouldForceResolve(wantedDependency)
 
           if (shouldForce) {
             return true

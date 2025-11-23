@@ -107,12 +107,13 @@ export type RequestPackageFunction = (
 
 export interface RequestPackageOptions {
   alwaysTryWorkspacePackages?: boolean
-  adapters?: Array<{
+  hooks?: Array<{
     canResolve?: (wantedDependency: WantedDependency) => boolean | Promise<boolean>
     resolve?: (...args: any[]) => any // eslint-disable-line @typescript-eslint/no-explicit-any
     canFetch?: (...args: any[]) => any // eslint-disable-line @typescript-eslint/no-explicit-any
     fetch?: (...args: any[]) => any // eslint-disable-line @typescript-eslint/no-explicit-any
     shouldForceResolve?: (...args: any[]) => any // eslint-disable-line @typescript-eslint/no-explicit-any
+    updateConfig?: (...args: any[]) => any // eslint-disable-line @typescript-eslint/no-explicit-any
   }>
   currentPkg?: {
     id?: PkgResolutionId

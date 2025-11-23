@@ -130,50 +130,52 @@ An async function is supported.
 
 * `lockfile` - The resolved lockfile object that will be written to `pnpm-lock.yaml`.
 
-### `adapters`
+### `hooks` array
 
-Custom adapters allow you to implement custom package resolution and fetching logic for new package identifier schemes (like `my-protocol:package-name`). Adapters are objects that can intercept and customize two phases of the installation process:
+Custom hooks allow you to implement custom package resolution and fetching logic for new package identifier schemes (like `my-protocol:package-name`). Hook groups are objects that can intercept and customize multiple phases of the installation process:
 
 1. **Resolution phase**: Convert package descriptors (e.g., `foo@^1.0.0`) into resolutions
 2. **Fetch phase**: Completely handle fetching for custom package types
+3. **Configuration**: Modify pnpm configuration before installation
 
-**Adapter Interface:**
+**Hook Group Interface:**
 
 ```typescript
-interface Adapter {
+interface HookGroup {
   // Resolution phase
-  canResolve?: (descriptor: WantedDependency) => boolean | Promise<boolean>
-  resolve?: (descriptor: WantedDependency, opts: ResolveOptions) => ResolveResult | Promise<ResolveResult>
+  canResolve?: (wantedDependency: WantedDependency) => boolean | Promise<boolean>
+  resolve?: (wantedDependency: WantedDependency, opts: ResolveOptions) => ResolveResult | Promise<ResolveResult>
+  shouldForceResolve?: (wantedDependency: WantedDependency) => boolean | Promise<boolean>
 
   // Fetch phase - complete fetcher replacement
   canFetch?: (pkgId: string, resolution: Resolution) => boolean | Promise<boolean>
   fetch?: (cafs: Cafs, resolution: Resolution, opts: FetchOptions, fetchers: Fetchers) => FetchResult | Promise<FetchResult>
 
-  // Force resolution check
-  shouldForceResolve?: (descriptor: WantedDependency, lockfileEntry?: PackageSnapshot) => boolean | Promise<boolean>
+  // Configuration
+  updateConfig?: (config: Config) => Config | Promise<Config>
 }
 ```
 
 **Resolution Phase:**
 
-* `canResolve(wantedDependency)` - Returns `true` if this adapter can resolve the given package descriptor
+* `canResolve(wantedDependency)` - Returns `true` if this hook can resolve the given package descriptor
 * `resolve(descriptor, opts)` - Resolves a package descriptor to a resolution. Should return an object with `id` and `resolution`
 
 **Fetch Phase:**
 
-* `canFetch(pkgId, resolution)` - Returns `true` if this adapter can handle fetching for the given resolution
+* `canFetch(pkgId, resolution)` - Returns `true` if this hook can handle fetching for the given resolution
 * `fetch(cafs, resolution, opts, fetchers)` - Completely handles fetching the package contents. Receives the content-addressable file system (cafs), the resolution, fetch options, and pnpm's standard fetchers for delegation. Must return a FetchResult with the package files.
 
 **Force Resolution:**
 
-* `shouldForceResolve(descriptor, lockfileEntry)` - Called for each dependency an adapter can resolve. Return `true` to trigger full resolution of all packages (skipping the "Lockfile is up to date" optimization)
+* `shouldForceResolve(descriptor, lockfileEntry)` - Called for each dependency a hook can resolve. Return `true` to trigger full resolution of all packages (skipping the "Lockfile is up to date" optimization)
 
 **Example - Reusing pnpm's fetcher utilities:**
 
 ```js
 const { createLocalTarballFetcher, createDownloader } = require('@pnpm/tarball-fetcher')
 
-const customAdapter = {
+const customHook = {
   canResolve: (wantedDependency) => {
     return wantedDependency.alias.startsWith('company-cdn:')
   },
@@ -219,14 +221,14 @@ const customAdapter = {
 
 installPkgs({
   hooks: {
-    adapters: [customAdapter]
+    hooks: [customHook]
   }
 })
 ```
 
 **Delegating to Standard Fetchers:**
 
-The `fetchers` parameter passed to `adapter.fetch` provides access to pnpm's standard fetchers for delegation:
+The `fetchers` parameter passed to `hook.fetch` provides access to pnpm's standard fetchers for delegation:
 
 * `fetchers.remoteTarball` - Fetch from remote tarball URLs
 * `fetchers.localTarball` - Fetch from local tarball files
@@ -234,15 +236,15 @@ The `fetchers` parameter passed to `adapter.fetch` provides access to pnpm's sta
 * `fetchers.directory` - Fetch from local directories
 * `fetchers.git` - Fetch from git repositories
 
-See the test cases in `resolving/default-resolver/test/customResolver.ts` and `fetching/pick-fetcher/test/adapterFetch.ts` for complete working examples.
+See the test cases in `resolving/default-resolver/test/customResolver.ts` and `fetching/pick-fetcher/test/hookFetch.ts` for complete working examples.
 
 **Notes:**
 
-* Multiple adapters can be registered; they are tried in order until one matches
-* All adapter methods support both synchronous and asynchronous implementations
-* Adapters are tried before pnpm's built-in resolvers (npm, git, tarball, etc.)
+* Multiple hooks can be registered; they are tried in order until one matches
+* All hook methods support both synchronous and asynchronous implementations
+* Hooks are tried before pnpm's built-in resolvers (npm, git, tarball, etc.)
 * The `fetch` method acts as a complete fetcher replacement, allowing custom package identifier schemes like `my-protocol:package`
-* Adapters can delegate to pnpm's standard fetchers via the `fetchers` parameter to avoid reimplementing common fetch logic
+* Hooks can delegate to pnpm's standard fetchers via the `fetchers` parameter to avoid reimplementing common fetch logic
 * The `shouldForceResolve` hook allows fine-grained control over when packages should be re-resolved
 
 ## License

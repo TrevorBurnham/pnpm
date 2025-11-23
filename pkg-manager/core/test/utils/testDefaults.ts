@@ -13,7 +13,7 @@ export function testDefaults<T> (
     prefix?: string
     registries?: Registries
     hooks?: {
-      adapters?: any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+      hooks?: any[] // eslint-disable-line @typescript-eslint/no-explicit-any
     }
   },
   resolveOpts?: any, // eslint-disable-line
@@ -31,7 +31,7 @@ export function testDefaults<T> (
     ...opts,
     clientOptions: {
       ...(opts?.registries != null ? { registries: opts.registries } : {}),
-      ...(opts?.hooks?.adapters ? { adapters: opts.hooks.adapters } : {}),
+      ...(opts?.hooks?.hooks ? { hooks: opts.hooks.hooks } : {}),
       ...resolveOpts,
       ...fetchOpts,
     },

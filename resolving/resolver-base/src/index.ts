@@ -114,12 +114,17 @@ export interface PreferredVersions {
 }
 
 export interface ResolveOptions {
-  adapters?: Array<{
+  /**
+   * Hook groups - unified hook interface.
+   * Each element can contain any combination of hooks.
+   */
+  hooks?: Array<{
     canResolve?: (wantedDependency: WantedDependency) => boolean | Promise<boolean>
     resolve?: (...args: any[]) => any // eslint-disable-line @typescript-eslint/no-explicit-any
     canFetch?: (...args: any[]) => any // eslint-disable-line @typescript-eslint/no-explicit-any
     fetch?: (...args: any[]) => any // eslint-disable-line @typescript-eslint/no-explicit-any
     shouldForceResolve?: (...args: any[]) => any // eslint-disable-line @typescript-eslint/no-explicit-any
+    updateConfig?: (...args: any[]) => any // eslint-disable-line @typescript-eslint/no-explicit-any
   }>
   alwaysTryWorkspacePackages?: boolean
   trustPolicy?: TrustPolicy

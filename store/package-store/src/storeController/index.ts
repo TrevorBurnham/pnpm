@@ -8,7 +8,7 @@ import {
   type ImportIndexedPackageAsync,
   type StoreController,
 } from '@pnpm/store-controller-types'
-import { type Adapter } from '@pnpm/hooks.types'
+import { type HookGroup } from '@pnpm/hooks.types'
 import { addFilesFromDir, importPackage, initStoreDir } from '@pnpm/worker'
 import { prune } from './prune.js'
 
@@ -30,7 +30,7 @@ export interface CreatePackageStoreOptions {
   virtualStoreDirMaxLength: number
   strictStorePkgContentCheck?: boolean
   clearResolutionCache: () => void
-  adapters?: Adapter[]
+  hooks?: HookGroup[]
 }
 
 export function createPackageStore (
@@ -60,7 +60,7 @@ export function createPackageStore (
     verifyStoreIntegrity: initOpts.verifyStoreIntegrity,
     virtualStoreDirMaxLength: initOpts.virtualStoreDirMaxLength,
     strictStorePkgContentCheck: initOpts.strictStorePkgContentCheck,
-    adapters: initOpts.adapters,
+    hooks: initOpts.hooks,
   })
 
   return {

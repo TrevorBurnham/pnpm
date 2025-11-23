@@ -1,4 +1,4 @@
-import type { PreResolutionHookContext, PreResolutionHookLogger, Adapter } from '@pnpm/hooks.types'
+import type { PreResolutionHookContext, PreResolutionHookLogger, HookGroup } from '@pnpm/hooks.types'
 import { PnpmError } from '@pnpm/error'
 import { hookLogger } from '@pnpm/core-loggers'
 import { createHashFromMultipleFiles } from '@pnpm/crypto.hash'
@@ -34,11 +34,11 @@ export interface CookedHooks {
   readPackage?: ReadPackageHook[]
   preResolution?: Array<(ctx: PreResolutionHookContext) => Promise<void>>
   afterAllResolved?: Array<(lockfile: LockfileObject) => LockfileObject | Promise<LockfileObject>>
-  filterLog?: Array<Cook<Required<Hooks>['filterLog']>>
-  updateConfig?: Array<Cook<Required<Hooks>['updateConfig']>>
+  filterLog?: Array<(log: any) => boolean> // eslint-disable-line @typescript-eslint/no-explicit-any
+  updateConfig?: Array<(config: any) => any> // eslint-disable-line @typescript-eslint/no-explicit-any
   importPackage?: ImportIndexedPackageAsync
   fetchers?: CustomFetchers
-  adapters?: Adapter[]
+  hooks?: HookGroup[]
   calculatePnpmfileChecksum?: () => Promise<string>
 }
 
@@ -161,16 +161,20 @@ export async function requireHooks (
       cookedHooks.filterLog.push(fileHooks.filterLog)
     }
 
-    // updateConfig
-    if (fileHooks.updateConfig) {
-      const updateConfig = fileHooks.updateConfig
-      cookedHooks.updateConfig.push((config: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        const updated = updateConfig(config)
-        if (updated == null) {
-          throw new PnpmError('CONFIG_IS_UNDEFINED', 'The updateConfig hook returned undefined')
+    // updateConfig - extract from hook groups
+    if (fileHooks.hooks) {
+      for (const hookGroup of fileHooks.hooks) {
+        if (hookGroup.updateConfig) {
+          const updateConfig = hookGroup.updateConfig
+          cookedHooks.updateConfig.push((config: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+            const updated = updateConfig(config)
+            if (updated == null) {
+              throw new PnpmError('CONFIG_IS_UNDEFINED', 'The updateConfig hook returned undefined')
+            }
+            return updated
+          })
         }
-        return updated
-      })
+      }
     }
 
     // preResolution
@@ -203,10 +207,10 @@ export async function requireHooks (
       cookedHooks.fetchers = fileHooks.fetchers
     }
 
-    // adapters: merge all
-    if (fileHooks.adapters) {
-      cookedHooks.adapters = cookedHooks.adapters ?? []
-      cookedHooks.adapters.push(...fileHooks.adapters)
+    // hooks: merge all hook groups
+    if (fileHooks.hooks) {
+      cookedHooks.hooks = cookedHooks.hooks ?? []
+      cookedHooks.hooks.push(...fileHooks.hooks)
     }
   }
 

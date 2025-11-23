@@ -11,17 +11,17 @@ import nock from 'nock'
 const f = fixtures(import.meta.dirname)
 
 /**
- * These tests demonstrate realistic adapter.fetch implementations and verify
- * that the adapter.fetch API works correctly for common use cases.
+ * These tests demonstrate realistic hook.fetch implementations and verify
+ * that the hook.fetch API works correctly for common use cases.
  */
 
-describe('adapter.fetch implementation examples', () => {
-  describe('basic adapter.fetch contract', () => {
+describe('hook.fetch implementation examples', () => {
+  describe('basic hook.fetch contract', () => {
     test('should successfully return FetchResult with manifest and filesIndex', async () => {
       const mockManifest = { name: 'test-package', version: '1.0.0' }
       const mockFilesIndex = { 'package.json': '/path/to/store/package.json' }
 
-      const adapter = {
+      const hookGroup = {
         canFetch: () => true,
         fetch: async (_cafs: any, _resolution: any, _opts: any, _fetchers: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           return {
@@ -36,7 +36,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         mockFetchers,
         { tarball: 'http://example.com/package.tgz' } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'test-package@1.0.0' }
+        { hooks: [hookGroup], packageId: 'test-package@1.0.0' }
       )
 
       const mockCafs = {} as any // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -48,7 +48,7 @@ describe('adapter.fetch implementation examples', () => {
     })
 
     test('should handle requiresBuild flag correctly', async () => {
-      const adapter = {
+      const hookGroup = {
         canFetch: () => true,
         fetch: async () => ({
           filesIndex: {},
@@ -61,7 +61,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         mockFetchers,
         { tarball: 'http://example.com/package.tgz' } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'pkg@1.0.0' }
       )
 
       const result = await fetcher({} as any, { tarball: 'http://example.com/package.tgz' } as any, {} as any) // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -69,8 +69,8 @@ describe('adapter.fetch implementation examples', () => {
       expect(result.requiresBuild).toBe(true)
     })
 
-    test('should propagate errors from adapter.fetch', async () => {
-      const adapter = {
+    test('should propagate errors from hook.fetch', async () => {
+      const hookGroup = {
         canFetch: () => true,
         fetch: async () => {
           throw new Error('Network error during fetch')
@@ -81,7 +81,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         mockFetchers,
         { tarball: 'http://example.com/package.tgz' } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'pkg@1.0.0' }
       )
 
       await expect(
@@ -89,10 +89,10 @@ describe('adapter.fetch implementation examples', () => {
       ).rejects.toThrow('Network error during fetch')
     })
 
-    test('should pass CAFS to adapter.fetch for file operations', async () => {
+    test('should pass CAFS to hook.fetch for file operations', async () => {
       let receivedCafs: any = null // eslint-disable-line @typescript-eslint/no-explicit-any
 
-      const adapter = {
+      const hookGroup = {
         canFetch: () => true,
         fetch: async (cafs: any, _resolution: any, _opts: any, _fetchers: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           receivedCafs = cafs
@@ -108,7 +108,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         mockFetchers,
         { tarball: 'http://example.com/package.tgz' } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'pkg@1.0.0' }
       )
 
       const mockCafs = { addFilesFromTarball: jest.fn() }
@@ -117,14 +117,14 @@ describe('adapter.fetch implementation examples', () => {
       expect(receivedCafs).toBe(mockCafs)
     })
 
-    test('should pass progress callbacks to adapter.fetch', async () => {
+    test('should pass progress callbacks to hook.fetch', async () => {
       const onStartFn = jest.fn()
       const onProgressFn = jest.fn()
 
-      const adapter = {
+      const hookGroup = {
         canFetch: () => true,
         fetch: async (_cafs: any, _resolution: any, opts: any, _fetchers: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-          // Adapter can call progress callbacks
+          // Hook can call progress callbacks
           opts.onStart?.(100, 1)
           opts.onProgress?.({ done: 50, total: 100 })
 
@@ -140,7 +140,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         mockFetchers,
         { tarball: 'http://example.com/package.tgz' } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'pkg@1.0.0' }
       )
 
       await fetcher(
@@ -156,10 +156,10 @@ describe('adapter.fetch implementation examples', () => {
     test('should work with custom resolution types', async () => {
       const customResolution = { type: '@company/cdn', cdnUrl: 'https://cdn.example.com/pkg.tgz' }
 
-      const adapter = {
+      const hookGroup = {
         canFetch: (_pkgId: any, resolution: any) => resolution.type === '@company/cdn', // eslint-disable-line @typescript-eslint/no-explicit-any
         fetch: async (_cafs: any, resolution: any, _opts: any, _fetchers: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-          // Adapter can access custom resolution fields
+          // Hook can access custom resolution fields
           expect(resolution.type).toBe('@company/cdn')
           expect(resolution.cdnUrl).toBe('https://cdn.example.com/pkg.tgz')
 
@@ -174,14 +174,14 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         customResolution as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'pkg@1.0.0' }
       )
 
       await fetcher({} as any, customResolution as any, {} as any) // eslint-disable-line @typescript-eslint/no-explicit-any
     })
 
-    test('should allow adapter.fetch to return partial manifest', async () => {
-      const adapter = {
+    test('should allow hook.fetch to return partial manifest', async () => {
+      const hookGroup = {
         canFetch: () => true,
         fetch: async () => ({
           filesIndex: {},
@@ -193,7 +193,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         { tarball: 'http://example.com/package.tgz' } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'pkg@1.0.0' }
       )
 
       const result = await fetcher({} as any, { tarball: 'http://example.com/package.tgz' } as any, {} as any) // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -208,7 +208,7 @@ describe('adapter.fetch implementation examples', () => {
     const tarballPath = f.find('babel-helper-hoist-variables-6.24.1.tgz')
     const tarballIntegrity = 'sha1-HssnaJydJVE+rbyZFKc/VAi+enY='
 
-    test('adapter can delegate to remoteTarball fetcher', async () => {
+    test('hook can delegate to remoteTarball fetcher', async () => {
       const scope = nock(registry)
         .get('/custom-pkg.tgz')
         .replyWithFile(200, tarballPath, {
@@ -219,7 +219,7 @@ describe('adapter.fetch implementation examples', () => {
       const cafs = createCafsStore(storeDir)
       const filesIndexFile = path.join(storeDir, 'index.json')
 
-      // Create standard fetchers to pass to adapter
+      // Create standard fetchers to pass to hook
       const fetchFromRegistry = createFetchFromRegistry({})
       const tarballFetchers = createTarballFetcher(
         fetchFromRegistry,
@@ -227,8 +227,8 @@ describe('adapter.fetch implementation examples', () => {
         { rawConfig: {} }
       )
 
-      // Adapter that maps custom URLs to tarballs
-      const adapter = {
+      // Hook that maps custom URLs to tarballs
+      const hookGroup = {
         canFetch: (_pkgId: any, resolution: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           return resolution.type === '@company/custom' && Boolean(resolution.customUrl)
         },
@@ -247,7 +247,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         tarballFetchers as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         { type: '@company/custom', customUrl: `${registry}custom-pkg.tgz` } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'custom-pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'custom-pkg@1.0.0' }
       )
 
       const result = await fetcher(
@@ -260,7 +260,7 @@ describe('adapter.fetch implementation examples', () => {
       expect(scope.isDone()).toBeTruthy()
     })
 
-    test('adapter can delegate to localTarball fetcher', async () => {
+    test('hook can delegate to localTarball fetcher', async () => {
       const storeDir = temporaryDirectory()
       const cafs = createCafsStore(storeDir)
       const filesIndexFile = path.join(storeDir, 'index.json')
@@ -272,8 +272,8 @@ describe('adapter.fetch implementation examples', () => {
         { rawConfig: {} }
       )
 
-      // Adapter that maps custom local paths to tarballs
-      const adapter = {
+      // Hook that maps custom local paths to tarballs
+      const hookGroup = {
         canFetch: (_pkgId: any, resolution: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           return resolution.type === '@company/local' && Boolean(resolution.localPath)
         },
@@ -290,7 +290,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         tarballFetchers as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         { type: '@company/local', localPath: tarballPath } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'local-pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'local-pkg@1.0.0' }
       )
 
       const result = await fetcher(
@@ -302,7 +302,7 @@ describe('adapter.fetch implementation examples', () => {
       expect(result.filesIndex['package.json']).toBeTruthy()
     })
 
-    test('adapter can transform resolution before delegating to tarball fetcher', async () => {
+    test('hook can transform resolution before delegating to tarball fetcher', async () => {
       const scope = nock(registry)
         .get('/transformed-pkg.tgz')
         .replyWithFile(200, tarballPath, {
@@ -320,8 +320,8 @@ describe('adapter.fetch implementation examples', () => {
         { rawConfig: {} }
       )
 
-      // Adapter that transforms custom resolution to tarball URL
-      const adapter = {
+      // Hook that transforms custom resolution to tarball URL
+      const hookGroup = {
         canFetch: (_pkgId: any, resolution: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           return resolution.type === '@company/registry'
         },
@@ -341,7 +341,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         tarballFetchers as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         { type: '@company/registry', packageName: 'transformed-pkg' } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'transformed-pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'transformed-pkg@1.0.0' }
       )
 
       const result = await fetcher(
@@ -354,7 +354,7 @@ describe('adapter.fetch implementation examples', () => {
       expect(scope.isDone()).toBeTruthy()
     })
 
-    test('adapter can use gitHostedTarball fetcher for custom git URLs', async () => {
+    test('hook can use gitHostedTarball fetcher for custom git URLs', async () => {
       const storeDir = temporaryDirectory()
       const cafs = createCafsStore(storeDir)
       const filesIndexFile = path.join(storeDir, 'index.json')
@@ -366,8 +366,8 @@ describe('adapter.fetch implementation examples', () => {
         { rawConfig: {}, ignoreScripts: true }
       )
 
-      // Adapter that maps custom git resolution to git-hosted tarball
-      const adapter = {
+      // Hook that maps custom git resolution to git-hosted tarball
+      const hookGroup = {
         canFetch: (_pkgId: any, resolution: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           return resolution.type === '@company/git'
         },
@@ -388,7 +388,7 @@ describe('adapter.fetch implementation examples', () => {
           repo: 'sveltejs/action-deploy-docs',
           commit: 'a65fbf5a90f53c9d72fed4daaca59da50f074355',
         } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'git-pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'git-pkg@1.0.0' }
       )
 
       const result = await fetcher(
@@ -406,11 +406,11 @@ describe('adapter.fetch implementation examples', () => {
   })
 
   describe('custom fetch implementations', () => {
-    test('adapter can implement custom caching logic', async () => {
+    test('hook can implement custom caching logic', async () => {
       const fetchCalls: number[] = []
       const cache = new Map<string, any>() // eslint-disable-line @typescript-eslint/no-explicit-any
 
-      const adapter = {
+      const hookGroup = {
         canFetch: (_pkgId: any, resolution: any) => resolution.type === '@company/cached', // eslint-disable-line @typescript-eslint/no-explicit-any
         fetch: async (_cafs: any, resolution: any, _opts: any, _fetchers: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           fetchCalls.push(Date.now())
@@ -435,7 +435,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         { type: '@company/cached', url: 'https://cache.example.com/pkg', version: '1.0.0' } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'cached-pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'cached-pkg@1.0.0' }
       )
 
       // First fetch - should hit the fetch logic
@@ -456,11 +456,11 @@ describe('adapter.fetch implementation examples', () => {
       expect(fetchCalls).toHaveLength(2) // Fetcher called twice, but cache hit on second call
     })
 
-    test('adapter can implement authentication and token refresh', async () => {
+    test('hook can implement authentication and token refresh', async () => {
       let authToken = 'initial-token'
       const authCalls: string[] = []
 
-      const adapter = {
+      const hookGroup = {
         canFetch: (_pkgId: any, resolution: any) => resolution.type === '@company/auth', // eslint-disable-line @typescript-eslint/no-explicit-any
         fetch: async (_cafs: any, resolution: any, _opts: any, _fetchers: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           authCalls.push(authToken)
@@ -481,7 +481,7 @@ describe('adapter.fetch implementation examples', () => {
       const fetcher = await pickFetcher(
         {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         { type: '@company/auth', url: 'https://secure.example.com/pkg' } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-        { adapters: [adapter], packageId: 'auth-pkg@1.0.0' }
+        { hooks: [hookGroup], packageId: 'auth-pkg@1.0.0' }
       )
 
       const result = await fetcher(

@@ -1,7 +1,7 @@
 import { pickFetcher } from '@pnpm/pick-fetcher'
 import { jest } from '@jest/globals'
 import { type FetchFunction, type Fetchers } from '@pnpm/fetcher-base'
-import { type Adapter } from '@pnpm/hooks.types'
+import { type HookGroup } from '@pnpm/hooks.types'
 
 // Helper to create a mock Fetchers object with only the needed fetcher
 function createMockFetchers (partial: Partial<Fetchers>): Fetchers {
@@ -46,15 +46,15 @@ test('should fail to pick fetcher if the type is not defined', async () => {
   }).rejects.toThrow('Fetching for dependency type "directory" is not supported')
 })
 
-describe('adapter.fetch support', () => {
-  test('should use adapter.fetch when canFetch returns true', async () => {
+describe('hook.fetch support', () => {
+  test('should use hook.fetch when canFetch returns true', async () => {
     const mockFetchResult = { filesIndex: {}, manifest: { name: 'test', version: '1.0.0' }, requiresBuild: false }
-    const adapterFetch = jest.fn(async () => mockFetchResult)
+    const hookFetch = jest.fn(async () => mockFetchResult)
     const remoteTarball = jest.fn() as FetchFunction
 
-    const adapter: Partial<Adapter> = {
+    const hook: Partial<HookGroup> = {
       canFetch: () => true,
-      fetch: adapterFetch,
+      fetch: hookFetch,
     }
 
     const mockFetchers = createMockFetchers({ remoteTarball })
@@ -62,14 +62,14 @@ describe('adapter.fetch support', () => {
       mockFetchers,
       { tarball: 'http://example.com/package.tgz' },
       {
-        adapters: [adapter as Adapter],
+        hooks: [hook as HookGroup],
         packageId: 'test-package@1.0.0',
       }
     )
 
     expect(typeof fetcher).toBe('function')
 
-    // Call the fetcher and verify it uses adapter.fetch
+    // Call the fetcher and verify it uses hook.fetch
     const mockCafs = {} as any // eslint-disable-line @typescript-eslint/no-explicit-any
     const mockResolution = { tarball: 'http://example.com/package.tgz' } as any // eslint-disable-line @typescript-eslint/no-explicit-any
     const mockFetchOpts = {} as any // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -77,7 +77,7 @@ describe('adapter.fetch support', () => {
     const result = await fetcher(mockCafs, mockResolution, mockFetchOpts)
 
     expect(result).toBe(mockFetchResult)
-    expect(adapterFetch).toHaveBeenCalledWith(
+    expect(hookFetch).toHaveBeenCalledWith(
       mockCafs,
       { tarball: 'http://example.com/package.tgz' },
       mockFetchOpts,
@@ -86,20 +86,20 @@ describe('adapter.fetch support', () => {
     expect(remoteTarball).not.toHaveBeenCalled()
   })
 
-  test('should use adapter.fetch when canFetch returns promise resolving to true', async () => {
+  test('should use hook.fetch when canFetch returns promise resolving to true', async () => {
     const mockFetchResult = { filesIndex: {}, manifest: { name: 'test', version: '1.0.0' }, requiresBuild: false }
-    const adapterFetch = jest.fn(async () => mockFetchResult)
+    const hookFetch = jest.fn(async () => mockFetchResult)
 
-    const adapter: Partial<Adapter> = {
+    const hook: Partial<HookGroup> = {
       canFetch: async () => Promise.resolve(true),
-      fetch: adapterFetch,
+      fetch: hookFetch,
     }
 
     const fetcher = await pickFetcher(
       createMockFetchers({}),
       { tarball: 'http://example.com/package.tgz' },
       {
-        adapters: [adapter as Adapter],
+        hooks: [hook as HookGroup],
         packageId: 'test-package@1.0.0',
       }
     )
@@ -108,31 +108,31 @@ describe('adapter.fetch support', () => {
   })
 
   test('should fall through to standard fetcher when canFetch returns false', async () => {
-    const adapterFetch = jest.fn() as any // eslint-disable-line @typescript-eslint/no-explicit-any
+    const hookFetch = jest.fn() as any // eslint-disable-line @typescript-eslint/no-explicit-any
     const remoteTarball = jest.fn() as FetchFunction
 
-    const adapter: Partial<Adapter> = {
+    const hook: Partial<HookGroup> = {
       canFetch: () => false,
-      fetch: adapterFetch,
+      fetch: hookFetch,
     }
 
     const fetcher = await pickFetcher(
       createMockFetchers({ remoteTarball }),
       { tarball: 'http://example.com/package.tgz' },
       {
-        adapters: [adapter as Adapter],
+        hooks: [hook as HookGroup],
         packageId: 'test-package@1.0.0',
       }
     )
 
     expect(fetcher).toBe(remoteTarball)
-    expect(adapterFetch).not.toHaveBeenCalled()
+    expect(hookFetch).not.toHaveBeenCalled()
   })
 
-  test('should skip adapter without canFetch method', async () => {
+  test('should skip hook without canFetch method', async () => {
     const remoteTarball = jest.fn() as FetchFunction
 
-    const adapter: Partial<Adapter> = {
+    const hook: Partial<HookGroup> = {
       // No canFetch method
       fetch: jest.fn() as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     }
@@ -141,7 +141,7 @@ describe('adapter.fetch support', () => {
       createMockFetchers({ remoteTarball }),
       { tarball: 'http://example.com/package.tgz' },
       {
-        adapters: [adapter as Adapter],
+        hooks: [hook as HookGroup],
         packageId: 'test-package@1.0.0',
       }
     )
@@ -149,16 +149,16 @@ describe('adapter.fetch support', () => {
     expect(fetcher).toBe(remoteTarball)
   })
 
-  test('should check adapters in order and use first match', async () => {
-    const mockFetchResult1 = { filesIndex: {}, manifest: { name: 'adapter1', version: '1.0.0' }, requiresBuild: false }
-    const mockFetchResult2 = { filesIndex: {}, manifest: { name: 'adapter2', version: '1.0.0' }, requiresBuild: false }
+  test('should check hooks in order and use first match', async () => {
+    const mockFetchResult1 = { filesIndex: {}, manifest: { name: 'hook1', version: '1.0.0' }, requiresBuild: false }
+    const mockFetchResult2 = { filesIndex: {}, manifest: { name: 'hook2', version: '1.0.0' }, requiresBuild: false }
 
-    const adapter1: Partial<Adapter> = {
+    const hook1: Partial<HookGroup> = {
       canFetch: () => true,
       fetch: jest.fn(async () => mockFetchResult1),
     }
 
-    const adapter2: Partial<Adapter> = {
+    const hook2: Partial<HookGroup> = {
       canFetch: () => true,
       fetch: jest.fn(async () => mockFetchResult2),
     }
@@ -167,7 +167,7 @@ describe('adapter.fetch support', () => {
       createMockFetchers({}),
       { tarball: 'http://example.com/package.tgz' },
       {
-        adapters: [adapter1 as Adapter, adapter2 as Adapter],
+        hooks: [hook1 as HookGroup, hook2 as HookGroup],
         packageId: 'test-package@1.0.0',
       }
     )
@@ -179,14 +179,14 @@ describe('adapter.fetch support', () => {
     const result = await fetcher(mockCafs, mockResolution, mockFetchOpts)
 
     expect(result).toBe(mockFetchResult1)
-    expect(adapter1.fetch).toHaveBeenCalled()
-    expect(adapter2.fetch).not.toHaveBeenCalled()
+    expect(hook1.fetch).toHaveBeenCalled()
+    expect(hook2.fetch).not.toHaveBeenCalled()
   })
 
-  test('should require packageId for adapter.fetch', async () => {
+  test('should require packageId for hook.fetch', async () => {
     const remoteTarball = jest.fn() as FetchFunction
 
-    const adapter: Partial<Adapter> = {
+    const hook: Partial<HookGroup> = {
       canFetch: () => true,
       fetch: jest.fn() as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     }
@@ -195,7 +195,7 @@ describe('adapter.fetch support', () => {
       createMockFetchers({ remoteTarball }),
       { tarball: 'http://example.com/package.tgz' },
       {
-        adapters: [adapter as Adapter],
+        hooks: [hook as HookGroup],
         // No packageId
       }
     )
@@ -206,11 +206,11 @@ describe('adapter.fetch support', () => {
 
   test('should handle custom resolution types', async () => {
     const mockFetchResult = { filesIndex: {}, manifest: { name: 'test', version: '1.0.0' }, requiresBuild: false }
-    const adapterFetch = jest.fn(async () => mockFetchResult)
+    const hookFetch = jest.fn(async () => mockFetchResult)
 
-    const adapter: Partial<Adapter> = {
+    const hook: Partial<HookGroup> = {
       canFetch: (pkgId: string, resolution: any) => resolution.type === '@test/custom', // eslint-disable-line @typescript-eslint/no-explicit-any
-      fetch: adapterFetch,
+      fetch: hookFetch,
     }
 
     const mockFetchers = createMockFetchers({})
@@ -218,7 +218,7 @@ describe('adapter.fetch support', () => {
       mockFetchers,
       { type: '@test/custom', customField: 'value' } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
       {
-        adapters: [adapter as Adapter],
+        hooks: [hook as HookGroup],
         packageId: 'test-package@1.0.0',
       }
     )
@@ -229,7 +229,7 @@ describe('adapter.fetch support', () => {
 
     await fetcher(mockCafs, mockResolution, mockFetchOpts)
 
-    expect(adapterFetch).toHaveBeenCalledWith(
+    expect(hookFetch).toHaveBeenCalledWith(
       mockCafs,
       { type: '@test/custom', customField: 'value' },
       mockFetchOpts,
@@ -237,12 +237,12 @@ describe('adapter.fetch support', () => {
     )
   })
 
-  test('should pass all fetch options to adapter.fetch', async () => {
-    const adapterFetch = jest.fn(async () => ({ filesIndex: {}, manifest: { name: 'test', version: '1.0.0' }, requiresBuild: false }))
+  test('should pass all fetch options to hook.fetch', async () => {
+    const hookFetch = jest.fn(async () => ({ filesIndex: {}, manifest: { name: 'test', version: '1.0.0' }, requiresBuild: false }))
 
-    const adapter: Partial<Adapter> = {
+    const hook: Partial<HookGroup> = {
       canFetch: () => true,
-      fetch: adapterFetch,
+      fetch: hookFetch,
     }
 
     const mockFetchers = createMockFetchers({})
@@ -250,7 +250,7 @@ describe('adapter.fetch support', () => {
       mockFetchers,
       { tarball: 'http://example.com/package.tgz' },
       {
-        adapters: [adapter as Adapter],
+        hooks: [hook as HookGroup],
         packageId: 'test-package@1.0.0',
         lockfileDir: '/project',
       }
@@ -267,6 +267,6 @@ describe('adapter.fetch support', () => {
 
     await fetcher(mockCafs, mockResolution, mockFetchOpts)
 
-    expect(adapterFetch).toHaveBeenCalledWith(mockCafs, mockResolution, mockFetchOpts, mockFetchers)
+    expect(hookFetch).toHaveBeenCalledWith(mockCafs, mockResolution, mockFetchOpts, mockFetchers)
   })
 })

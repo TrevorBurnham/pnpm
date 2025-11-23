@@ -25,7 +25,7 @@ export interface PreResolutionHookLogger {
 
 export type PreResolutionHook = (ctx: PreResolutionHookContext, logger: PreResolutionHookLogger) => Promise<void>
 
-// Custom adapter hooks
+// Hook groups - unified hook interface
 export type { WantedDependency }
 
 export interface ResolveOptions {
@@ -39,25 +39,37 @@ export interface ResolveResult {
   resolution: Resolution
 }
 
-export interface Adapter {
-  // Resolution phase: resolve package descriptors
+/**
+ * A hook group can contain any combination of hooks.
+ * Multiple hook groups can be provided and will be evaluated in order.
+ */
+export interface HookGroup {
+  // Resolution hooks
   canResolve?: (wantedDependency: WantedDependency) => boolean | Promise<boolean>
   resolve?: (wantedDependency: WantedDependency, opts: ResolveOptions) => ResolveResult | Promise<ResolveResult>
+  shouldForceResolve?: (wantedDependency: WantedDependency) => boolean | Promise<boolean>
 
-  // Fetch phase: completely handle fetching for custom package types
-  // This is a complete fetcher replacement, not just a resolution transformer
-  // The fetchers parameter provides access to pnpm's standard fetchers for delegation
+  // Fetch hooks
   canFetch?: (pkgId: string, resolution: Resolution) => boolean | Promise<boolean>
   fetch?: (cafs: Cafs, resolution: Resolution, opts: FetchOptions, fetchers: Fetchers) => FetchResult | Promise<FetchResult>
 
-  // Force resolution: called for each dependency an adapter can resolve to determine if re-resolution is needed
-  // If this returns true for any dependency, full resolution will be performed for all packages
-  shouldForceResolve?: (wantedDependency: WantedDependency) => boolean | Promise<boolean>
+  // Config hook
+  /**
+   * Hook to modify pnpm configuration.
+   *
+   * Note: The config parameter is actually the Config type from @pnpm/config,
+   * but we use `any` here to avoid circular dependencies. Hook implementations
+   * can safely cast it to the full Config type.
+   *
+   * @param config - The pnpm configuration object
+   * @returns The modified configuration object
+   */
+  updateConfig?: (config: any) => any | Promise<any> // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 export {
-  getAdapterCacheKey,
+  getHookCacheKey,
   getCachedCanResolve,
   setCachedCanResolve,
-  checkAdapterCanResolve,
-} from './adapterCache.js'
+  checkHookCanResolve,
+} from './hookCache.js'
