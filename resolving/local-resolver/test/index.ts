@@ -104,7 +104,6 @@ test('resolve file', async () => {
       tarball: 'file:pnpm-local-resolver-0.1.1.tgz',
     },
     resolvedVia: 'local-filesystem',
-    forceFetch: false,
   })
 })
 
@@ -123,7 +122,6 @@ test("resolve file when lockfile directory differs from the package's dir", asyn
       tarball: 'file:tgz/pnpm-local-resolver-0.1.1.tgz',
     },
     resolvedVia: 'local-filesystem',
-    forceFetch: false,
   })
 })
 
@@ -139,11 +137,10 @@ test('resolve tarball specified with file: protocol', async () => {
       tarball: 'file:pnpm-local-resolver-0.1.1.tgz',
     },
     resolvedVia: 'local-filesystem',
-    forceFetch: false,
   })
 })
 
-test('resolve file with different integrity (forceFetch)', async () => {
+test('resolve file with different integrity returns new integrity', async () => {
   const wantedDependency = { bareSpecifier: 'file:./pnpm-local-resolver-0.1.1.tgz' }
   const resolveResult = await resolveFromLocal({}, wantedDependency, {
     projectDir: TEST_DIR,
@@ -164,7 +161,6 @@ test('resolve file with different integrity (forceFetch)', async () => {
       tarball: 'file:pnpm-local-resolver-0.1.1.tgz',
     },
     resolvedVia: 'local-filesystem',
-    forceFetch: true,
   })
 })
 
