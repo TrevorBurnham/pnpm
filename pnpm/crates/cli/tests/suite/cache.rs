@@ -490,7 +490,7 @@ fn should_report_a_zero_count_on_a_dry_run_of_a_clean_cache() {
     );
     assert!(
         !stderr.contains("still read these"),
-        "nothing listed, nothing to warn about, got: {stderr}"
+        "nothing listed, nothing to warn about, got: {stderr}",
     );
     assert_eq!(String::from_utf8_lossy(&output.stdout), "", "nothing to list on stdout");
 }
