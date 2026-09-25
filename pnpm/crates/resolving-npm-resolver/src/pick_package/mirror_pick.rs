@@ -4,6 +4,7 @@ use super::{
     TrustPolicy, dominant_lockfile_version, get_file_mtime, load_meta_async, pick_from_meta,
     pick_from_meta_fast, pick_stable_cached_range_version,
 };
+use crate::mirror::legacy_mirror_hint;
 
 impl PickState<'_> {
     /// The picks a read-only mirror can answer without taking the fetch
@@ -187,10 +188,12 @@ impl PickState<'_> {
         let meta = self.mirror_meta(disk_meta).await;
         if ctx.cache_policy.offline {
             let Some(meta) = meta else {
+                let pkg_mirror = self.pkg_mirror.clone().unwrap_or_default();
                 return Err(PickPackageError::NoOfflineMeta {
                     spec_name: spec.name.clone(),
                     spec_fetch_spec: spec.fetch_spec.clone(),
-                    pkg_mirror: self.pkg_mirror.clone().unwrap_or_default(),
+                    hint: legacy_mirror_hint(&pkg_mirror, opts.registry),
+                    pkg_mirror,
                 });
             };
             // `maybe_upgrade_abbreviated_meta_for_release_age` short-circuits

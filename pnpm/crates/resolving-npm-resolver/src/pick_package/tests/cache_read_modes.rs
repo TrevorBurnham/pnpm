@@ -206,10 +206,7 @@ async fn offline_with_mirror_picks_from_disk() {
     mock.assert_async().await;
 }
 
-#[tokio::test]
-async fn offline_without_mirror_errors() {
-    let cache_dir = TempDir::new().expect("tempdir");
-    let registry = "https://registry.example.com/".to_string();
+async fn pick_offline(cache_dir: &TempDir, registry: &str) -> PickPackageError {
     let http_client = ThrottledClient::default();
     let auth_headers = AuthHeaders::default();
     let meta_cache = InMemoryPackageMetaCache::default();
@@ -235,10 +232,34 @@ async fn offline_without_mirror_errors() {
         },
     };
 
-    let err = pick_package(&ctx, &range_spec("acme", "^1.0.0"), &default_opts(&registry))
+    pick_package(&ctx, &range_spec("acme", "^1.0.0"), &default_opts(registry))
         .await
-        .expect_err("offline + no mirror = error");
-    assert!(matches!(err, PickPackageError::NoOfflineMeta { .. }), "got {err:?}");
+        .expect_err("offline + no mirror = error")
+}
+
+#[tokio::test]
+async fn offline_without_mirror_errors() {
+    let cache_dir = TempDir::new().expect("tempdir");
+    let err = pick_offline(&cache_dir, "https://registry.example.com/").await;
+    assert!(matches!(err, PickPackageError::NoOfflineMeta { hint: None, .. }), "got {err:?}");
+}
+
+#[tokio::test]
+async fn offline_miss_points_at_legacy_mirror() {
+    let cache_dir = TempDir::new().expect("tempdir");
+    let legacy_mirror = cache_dir
+        .path()
+        .join(ABBREVIATED_META_DIR)
+        .join("registry.example.com")
+        .join("acme.jsonl");
+    std::fs::create_dir_all(legacy_mirror.parent().expect("parent")).expect("mkdir");
+    std::fs::write(&legacy_mirror, format!("{{}}\n{PACKAGE_BODY}")).expect("write legacy mirror");
+
+    let err = pick_offline(&cache_dir, "https://registry.example.com/").await;
+    let PickPackageError::NoOfflineMeta { hint: Some(hint), .. } = &err else {
+        panic!("expected a legacy-mirror hint, got {err:?}");
+    };
+    assert!(hint.contains(&legacy_mirror.display().to_string()), "hint: {hint}");
 }
 
 /// The verification state lives inside the cache entry, so an

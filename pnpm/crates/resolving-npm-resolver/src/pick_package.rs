@@ -146,6 +146,8 @@ pub enum PickPackageError {
         spec_name: String,
         spec_fetch_spec: String,
         pkg_mirror: PathBuf,
+        #[help]
+        hint: Option<String>,
     },
     /// Underlying picker error (no versions, unpublished, missing
     /// time, etc.). The picker errors are described on

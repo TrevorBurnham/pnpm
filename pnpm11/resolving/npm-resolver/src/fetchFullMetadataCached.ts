@@ -7,7 +7,7 @@ import {
   type FetchMetadataFromFromRegistryOptions,
   type FetchMetadataResult,
 } from './fetch.js'
-import { getPkgMirrorPath, loadMeta, loadMetaHeaders, prepareJsonForDisk, saveMeta } from './pickPackage.js'
+import { getLegacyPkgMirrorHint, getPkgMirrorPath, loadMeta, loadMetaHeaders, prepareJsonForDisk, saveMeta } from './pickPackage.js'
 
 export interface FetchMetadataCachedOptions {
   registry: string
@@ -74,7 +74,9 @@ async function fetchMetadataCached (
       const cached = await loadMeta(pkgMirror)
       if (cached != null) return cached
     }
-    throw new PnpmError('NO_OFFLINE_META', `Failed to resolve ${pkgName} in package mirror ${pkgMirror ?? ''}`)
+    throw new PnpmError('NO_OFFLINE_META', `Failed to resolve ${pkgName} in package mirror ${pkgMirror ?? ''}`, {
+      hint: pkgMirror != null ? await getLegacyPkgMirrorHint(pkgMirror, opts.registry) : undefined,
+    })
   }
 
   const cacheHeaders = pkgMirror != null ? await loadMetaHeaders(pkgMirror) : null

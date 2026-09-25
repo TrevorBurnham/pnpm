@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import util from 'node:util'
 
 import { ABBREVIATED_META_DIR, FULL_FILTERED_META_DIR, FULL_META_DIR } from '@pnpm/constants'
 import { createHexHash } from '@pnpm/crypto.hash'
@@ -402,7 +403,9 @@ export async function pickPackage (
           }
         }
 
-        throw new PnpmError('NO_OFFLINE_META', `Failed to resolve ${toRaw(spec)} in package mirror ${pkgMirror}`)
+        throw new PnpmError('NO_OFFLINE_META', `Failed to resolve ${toRaw(spec)} in package mirror ${pkgMirror}`, {
+          hint: await getLegacyPkgMirrorHint(pkgMirror, opts.registry),
+        })
       }
 
       if (diskMeta != null) {
@@ -839,6 +842,33 @@ function canonicalizeRegistry (registry: string): string {
  */
 export function getPkgMirrorPath (cacheDir: string, metaDir: string, registry: string, pkgName: string): string {
   return path.join(cacheDir, metaDir, encodeRegistry(registry), `${encodePkgName(pkgName)}.jsonl`)
+}
+
+/**
+ * Hint for an offline miss on `pkgMirror` when pnpm 11.26 and 12.3 or earlier
+ * cached the same package. Those versions keyed the directory on
+ * `host[+port]` alone, a name that ignores the scheme and path of the
+ * registry.
+ *
+ * The old file is only pointed at, never read: reading it would let one
+ * registry's metadata answer for another at the same host, which is what the
+ * current key prevents.
+ */
+export async function getLegacyPkgMirrorHint (pkgMirror: string, registry: string): Promise<string | undefined> {
+  let host: string
+  try {
+    host = new URL(registry).host
+  } catch {
+    return undefined
+  }
+  const legacyMirror = path.join(path.dirname(path.dirname(pkgMirror)), host.replace(':', '+'), path.basename(pkgMirror))
+  try {
+    if (!(await fs.stat(legacyMirror)).isFile()) return undefined
+  } catch (err: unknown) {
+    if (util.types.isNativeError(err) && 'code' in err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) return undefined
+    throw err
+  }
+  return `An older pnpm version cached this package at ${legacyMirror}, which this version does not read because the metadata cache directory names changed. Run the install once without --offline to repopulate the cache.`
 }
 
 /**

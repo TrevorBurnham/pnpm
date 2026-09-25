@@ -8,8 +8,8 @@ use pnpm_network::MetadataCacheScope;
 
 use super::{
     ABBREVIATED_META_DIR, FULL_FILTERED_META_DIR, FULL_META_DIR, decode_registry_name,
-    encode_pkg_name, get_pkg_mirror_path, get_registry_name, load_meta, load_meta_headers,
-    load_meta_with_hold_cap, save_meta_indexed, scoped_meta_dir,
+    encode_pkg_name, get_pkg_mirror_path, get_registry_name, legacy_mirror_hint, load_meta,
+    load_meta_headers, load_meta_with_hold_cap, save_meta_indexed, scoped_meta_dir,
 };
 
 #[test]
@@ -653,4 +653,43 @@ fn save_meta_overwrites_existing_mirror() {
 
     let headers = load_meta_headers(&mirror).expect("read headers");
     assert_eq!(headers.etag.as_deref(), Some(r#"W/"new""#));
+}
+
+#[test]
+fn legacy_mirror_hint_names_the_host_keyed_file() {
+    let cache_dir = TempDir::new().expect("tempdir");
+    let registry = "http://localhost:18977/";
+    let pkg_mirror = get_pkg_mirror_path(cache_dir.path(), ABBREVIATED_META_DIR, registry, "acme")
+        .expect("path");
+    assert_eq!(legacy_mirror_hint(&pkg_mirror, registry), None);
+
+    let legacy_mirror = cache_dir
+        .path()
+        .join(ABBREVIATED_META_DIR)
+        .join("localhost+18977")
+        .join("acme.jsonl");
+    std::fs::create_dir_all(legacy_mirror.parent().expect("parent")).expect("mkdir");
+    std::fs::write(&legacy_mirror, "{}").expect("write legacy mirror");
+
+    let hint = legacy_mirror_hint(&pkg_mirror, registry).expect("hint");
+    eprintln!("hint: {hint}");
+    assert!(hint.contains(&legacy_mirror.display().to_string()));
+    assert!(hint.contains("without --offline"));
+}
+
+#[test]
+fn legacy_mirror_hint_ignores_other_packages() {
+    let cache_dir = TempDir::new().expect("tempdir");
+    let registry = "https://registry.npmjs.org/";
+    let pkg_mirror = get_pkg_mirror_path(cache_dir.path(), ABBREVIATED_META_DIR, registry, "acme")
+        .expect("path");
+    let other_mirror = cache_dir
+        .path()
+        .join(ABBREVIATED_META_DIR)
+        .join("registry.npmjs.org")
+        .join("other.jsonl");
+    std::fs::create_dir_all(other_mirror.parent().expect("parent")).expect("mkdir");
+    std::fs::write(&other_mirror, "{}").expect("write legacy mirror");
+
+    assert_eq!(legacy_mirror_hint(&pkg_mirror, registry), None);
 }

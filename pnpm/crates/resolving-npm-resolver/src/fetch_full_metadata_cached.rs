@@ -33,8 +33,8 @@ use crate::{
     },
     mirror::{
         ABBREVIATED_META_DIR, FULL_FILTERED_META_DIR, FULL_META_DIR, MetaHeaders, clear_meta,
-        get_pkg_mirror_path, load_meta, load_meta_async, load_meta_headers_async,
-        save_meta_indexed, save_meta_ndjson, scoped_meta_dir,
+        get_pkg_mirror_path, legacy_mirror_hint, load_meta, load_meta_async,
+        load_meta_headers_async, save_meta_indexed, save_meta_ndjson, scoped_meta_dir,
     },
     registry_url::to_registry_url,
 };
@@ -81,9 +81,11 @@ pub async fn fetch_full_metadata_cached(
         if let Some(meta) = load_meta_async(mirror_path.as_deref()).await {
             return Ok(meta);
         }
+        let pkg_mirror = mirror_path.unwrap_or_default();
         return Err(FetchMetadataError::NoOfflineMeta {
             pkg_name: pkg_name.to_string(),
-            pkg_mirror: mirror_path.unwrap_or_default(),
+            hint: legacy_mirror_hint(&pkg_mirror, opts.registry),
+            pkg_mirror,
         });
     }
 

@@ -28,6 +28,8 @@ pub enum FetchMetadataError {
         pkg_name: String,
         #[error(not(source))]
         pkg_mirror: std::path::PathBuf,
+        #[help]
+        hint: Option<String>,
     },
 
     /// The deployment's route policy refuses this origin. Only a server

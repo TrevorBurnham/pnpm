@@ -190,6 +190,34 @@ pub fn get_pkg_mirror_path(
         .join(format!("{encoded_name}.jsonl")))
 }
 
+/// Help text for an offline miss on `pkg_mirror` when pnpm 11.26 and 12.3 or
+/// earlier cached the same package. Those versions keyed the directory on
+/// `host[+port]` alone, a name that ignores the scheme and path of the
+/// registry.
+///
+/// The old file is only pointed at, never read: reading it would let one
+/// registry's metadata answer for another at the same host, which is what
+/// the current key prevents.
+#[must_use]
+pub fn legacy_mirror_hint(pkg_mirror: &Path, registry: &str) -> Option<String> {
+    let parsed = reqwest::Url::parse(registry).ok()?;
+    let host = parsed.host_str()?;
+    let legacy_key = match parsed.port() {
+        Some(port) => format!("{host}+{port}"),
+        None => host.to_string(),
+    };
+    let meta_root = pkg_mirror.parent()?.parent()?;
+    let legacy_mirror = meta_root
+        .join(legacy_key)
+        .join(pkg_mirror.file_name()?);
+    legacy_mirror.is_file().then(|| {
+        format!(
+            "An older pnpm version cached this package at {}, which this version does not read because the metadata cache directory names changed. Run the install once without --offline to repopulate the cache.",
+            legacy_mirror.display(),
+        )
+    })
+}
+
 /// Magic + format version. The trailing space separates it from the
 /// two record lengths on the same line.
 const MIRROR_MAGIC: &str = "pacquet-meta-v1";
